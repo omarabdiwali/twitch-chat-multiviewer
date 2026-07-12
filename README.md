@@ -38,17 +38,17 @@ A self-contained, browser-based Twitch chat client that joins multiple channels 
 #### Method A: Standalone HTML page
 1. Place `twitch.js` in a folder.
 2. Create an `index.html` alongside it:
-   ```html
-   <!DOCTYPE html>
-   <html lang="en">
-   <head>
-       <meta charset="UTF-8">
-       <title>Twitch Chat</title>
-   </head>
-   <body>
-       <script src="twitch.js"></script>
-   </body>
-   </html>
+  ```html
+  <!DOCTYPE html>
+  <html lang="en">
+    <head>
+    <meta charset="UTF-8">
+      <title>Twitch Chat</title>
+    </head>
+    <body>
+      <script src="twitch.js"></script>
+    </body>
+  </html>
    ```
 3. Open `index.html` in your browser. The script immediately clears the page and builds its own UI.
 
@@ -56,7 +56,7 @@ A self-contained, browser-based Twitch chat client that joins multiple channels 
 1. Open a blank tab or any page you don’t mind replacing.
 2. Open the developer console (F12).
 3. Paste the entire contents of `twitch.js` and press **Enter**.
-   *(You could also wrap the code in an IIFE and save it as a bookmarklet.)*
+  *(You could also wrap the code in an IIFE and save it as a bookmarklet.)*
 
 ## Using the Interface
 

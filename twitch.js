@@ -814,7 +814,6 @@ sevenTVws.onopen = () => {
 sevenTVws.onmessage = (event) => {
     const message = JSON.parse(event.data);
     if (message.op == 2) return;
-    console.log(message);
     if (message.op == 0) {
         const data = message.d;
         const emoteSetId = getNestedProperty(data, ['body', 'id']);
@@ -832,7 +831,6 @@ sevenTVws.onmessage = (event) => {
             for (const emote of pulled) {
                 const name = getNestedProperty(emote, ['old_value', 'name']);
                 if (name && roomId in channelEmotes && name in channelEmotes[roomId]) {
-                    console.log(`Emote ${name} removed!`);
                     delete channelEmotes[roomId][name];
                     isChanged = true;
                 }
@@ -849,7 +847,6 @@ sevenTVws.onmessage = (event) => {
                     channelEmotes[roomId] = {};
                 }
                 
-                console.log(`Emote ${name} added: ${build7tvEmoteUrl(url)}`);
                 channelEmotes[roomId][name] = build7tvEmoteUrl(url);
                 isChanged = true;
             }
@@ -862,7 +859,6 @@ sevenTVws.onmessage = (event) => {
                 const newUrl = getNestedProperty(changes, ['value', 'data', 'host', 'url']);
 
                 if (oldName in channelEmotes[roomId] && newName && newUrl) {
-                    console.log(`Emote ${oldName} renamed to ${newName}!`);
                     channelEmotes[roomId][newName] = channelEmotes[roomId][oldName];
                     delete channelEmotes[roomId][oldName];
                     isChanged = true;
@@ -897,6 +893,10 @@ const leaveChannel = (channelName) => {
 const joinChannel = (channelName) => {
     channelName = channelName.toLowerCase();
     if (ws == undefined || channels.has(channelName)) return;
+    if (channels.size >= 20) {
+        alert(`Max connections reached - ${channels.size}.`);
+        return;
+    }
     channels.add(channelName);
     ws.send(`JOIN #${channelName}`);
     createLeaveButton(channelName);
