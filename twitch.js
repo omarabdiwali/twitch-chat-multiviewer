@@ -10,6 +10,200 @@ const COLORS = [
     'rgb(255,105,180)', 'rgb(138,43,226)', 'rgb(0,255,127)'
 ];
 
+const CSS_STYLING = `
+    * {
+        box-sizing: border-box;
+        border: 0 solid #e5e7eb;
+    }
+    html {
+        -webkit-text-size-adjust: 100%;
+        tab-size: 4;
+        line-height: 1.5;
+        font-family:
+            ui-sans-serif,
+            system-ui,
+            -apple-system,
+            BlinkMacSystemFont,
+            Segoe UI,
+            Roboto,
+            Helvetica Neue,
+            Arial,
+            Noto Sans,
+            sans-serif,
+            Apple Color Emoji,
+            Segoe UI Emoji,
+            Segoe UI Symbol,
+            Noto Color Emoji;
+    }
+    body {
+        line-height: inherit;
+        margin: 0;
+        background: oklch(12.9% 0.042 264.695);
+    }
+    a {
+        color: inherit;
+        -webkit-text-decoration: inherit;
+        text-decoration: inherit;
+    }
+    button, input {
+        font-feature-settings: inherit;
+        font-variation-settings: inherit;
+        font-family: inherit;
+        font-size: 100%;
+        font-weight: inherit;
+        line-height: inherit;
+        color: inherit;
+        margin: 0;
+        padding: 0;
+    }
+    button {
+        text-transform: none;
+        -webkit-appearance: button;
+    }
+    input::placeholder, input::-moz-placeholder {
+        opacity: 1;
+        color: #9ca3af;
+    }
+    button, [role="button"] {
+        cursor: pointer;
+    }
+    :disabled {
+        cursor: default;
+    }
+    #chat-container {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        flex-direction: column-reverse;
+        overflow-y: auto;
+        overflow-x: hidden;
+        overscroll-behavior: contain;
+        font-family: Inter, Roobert, "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+        font-size: 16px;
+        height: 98vh;
+        min-height: 0;
+        padding: 0 10px 0 10px;
+        contain: content;
+    }
+    .parent, .parent-highlighted {
+        display: inline;
+        margin: 2px;
+    }
+    .parent-highlighted {
+        background-color: #cd38cd27;
+        border-inline-start: .25rem solid #cd38cd;
+        border-inline-end: .25rem solid #cd38cd;
+        padding: 2px 6px 2px 6px;
+    }
+    .username {
+        display: inline;
+        font-weight: bold;
+        margin-right: 4px;
+        cursor: pointer;
+    }
+    .username:hover {
+        text-decoration: underline;
+    }
+    .message, .message-highlighted {
+        padding-right: 5px;
+        display: inline;
+        color: white;
+    }
+    .message-highlighted {
+        background: #755ebc;
+        border: 4px solid #755ebc;
+    }
+    .emote, .badges {
+        overflow-clip-margin: content-box;
+        overflow: clip;
+        object-fit: contain;
+        width: auto;
+        vertical-align: middle;
+        display: inline;
+        margin-left: 2px;
+        cursor: pointer;
+    }
+    .emote {
+        height: 20px;
+    }
+    .badges {
+        height: 16px;
+        margin: 0 2px 0 2px;
+        border-radius: 3px;
+    }
+    .url {
+        display: inline;
+        color: lightblue;
+    }
+    .url:hover {
+        color: #29c0f3;
+        text-decoration: underline;
+    }
+    #buttons {
+        display: flex;
+        flex-direction: column;
+        position: absolute;
+        top: 15%;
+        left: 75%;
+        width: 20%;
+        z-index: 100;
+        gap: 3px;
+    }
+    .hidden {
+        display: none !important;
+    }
+    .leave-button, #close-socket, #clear-button {
+        color: black !important;
+        border-radius: 7px !important;
+        padding: 3px !important;
+        font-weight: bold !important;
+    }
+    .leave-button {
+        background: blue !important;
+    }
+    .leave-button:hover {
+        background: lightblue !important;
+    }
+    #close-socket {
+        background: red !important;
+    }
+    #close-socket:hover {
+        background: #FFCCCB !important;
+    }
+    #clear-button {
+        background: green !important;
+    }
+    #clear-button:hover {
+        background: lightgreen !important;
+    }
+    #channel-input {
+        background: white !important;
+        color: black !important;
+        position: absolute;
+        top: 2%;
+        left: 58%;
+        width: 40%;
+        height: 5%;
+        padding: 7px !important;
+    }
+    #jump-to-bottom {
+        position: absolute;
+        background: #146890;
+        color: white;
+        bottom: 5%;
+        left: 45%;
+        border: 1px solid #146890;
+        border-radius: 15px;
+        z-index: 100;
+        padding: 5px;
+        width: 5%;
+        font-weight: bold;
+    }
+    #jump-to-bottom:hover {
+        background: #0d80b5;
+    }
+`
+
 const channels = new Set();
 const roomIds = new Set();
 const bots = new Set(["Fossabot", "PotatBotat", "Nightbot", "StreamElements"].map((bot) => { return bot.toLowerCase() }));
@@ -135,14 +329,6 @@ const makeColorViewable = (color) => {
 const setInitialElements = () => {
     document.querySelectorAll('style, link[rel="stylesheet"]').forEach(el => el.remove());
     document.body.innerHTML = '';
-    document.body.style.background = 'oklch(12.9% 0.042 264.695)';
-
-    const baseCSS = document.createElement('link');
-    baseCSS.rel = "stylesheet";
-    baseCSS.href = "https://note-session.vercel.app/_next/static/chunks/00irns679c33c.css";
-    baseCSS.id = "base-website-id";
-
-    document.head.append(baseCSS);
 
     const chatContainer = document.createElement('div');
     chatContainer.id = 'chat-container';
@@ -160,7 +346,7 @@ const setInitialElements = () => {
             if (ws.readyState != ws.OPEN) return;
 
             const inputedChannel = addChannelInput.value.trim();
-            if (inputedChannel.length > 3 && !inputedChannel.includes(' ')) {
+            if (inputedChannel.length >= 3 && !inputedChannel.includes(' ')) {
                 joinChannel(inputedChannel);
             }
 
@@ -211,163 +397,7 @@ const setInitialElements = () => {
 
     const stylesheet = document.createElement('style');
     stylesheet.id = 'stylesheet-global';
-    stylesheet.textContent = `
-        #chat-container {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            flex-direction: column-reverse;
-            overflow-y: auto;
-            overflow-x: hidden;
-            overscroll-behavior: contain;
-            font-family: Inter, Roobert, "Helvetica Neue", Helvetica, Arial, sans-serif;
-            font-size: 16px;
-            height: 98vh;
-            min-height: 0;
-            padding: 0 10px 0 10px;
-            contain: content;
-        }
-
-        .parent, .parent-highlighted {
-            display: inline;
-            margin: 2px;
-        }
-
-        .parent-highlighted {
-            background-color: #cd38cd27;
-            border-inline-start: .25rem solid #cd38cd;
-            border-inline-end: .25rem solid #cd38cd;
-            padding: 2px 6px 2px 6px;
-        }
-        
-        .username {
-            display: inline;
-            font-weight: bold;
-            margin-right: 4px;
-            cursor: pointer;
-        }
-
-        .username:hover {
-            text-decoration: underline;
-        }
-
-        .message, .message-highlighted {
-            padding-right: 5px;
-            display: inline;
-            color: white;
-        }
-
-        .message-highlighted {
-            background: #755ebc;
-            border: 4px solid #755ebc;
-        }
-
-        .emote, .badges {
-            overflow-clip-margin: content-box;
-            overflow: clip;
-            object-fit: contain;
-            width: auto;
-            vertical-align: middle;
-            display: inline;
-            margin-left: 2px;
-            cursor: pointer;
-        }
-
-        .emote {
-            height: 20px;
-        }
-        
-        .badges {
-            height: 16px;
-            margin: 0 2px 0 2px;
-            border-radius: 3px;
-        }
-
-        .url {
-            display: inline;
-            color: lightblue;
-        }
-
-        .url:hover {
-            color: #29c0f3;
-            text-decoration: underline;
-        }
-        
-        #buttons {
-            display: flex;
-            flex-direction: column;
-            position: absolute;
-            top: 15%;
-            left: 75%;
-            width: 20%;
-            z-index: 100;
-            gap: 3px;
-        }
-        
-        .hidden {
-            display: none !important;
-        }
-        
-        .leave-button, #close-socket, #clear-button {
-            color: black;
-            border-radius: 7px;
-            padding: 3px;
-            font-weight: bold;
-        }
-
-        .leave-button {
-            background: blue;
-        }
-        
-        .leave-button:hover {
-            background: lightblue;
-        }
-
-        #close-socket {
-            background: red;
-        }
-
-        #close-socket:hover {
-            background: #FFCCCB;
-        }
-
-        #clear-button {
-            background: green;
-        }
-
-        #clear-button:hover {
-            background: lightgreen;
-        }
-
-        #channel-input {
-            background: white;
-            color: black;
-            position: absolute;
-            top: 2%;
-            left: 58%;
-            width: 40%;
-            height: 5%;
-            padding: 7px;
-        }
-
-        #jump-to-bottom {
-            position: absolute;
-            background: #146890;
-            color: white;
-            bottom: 5%;
-            left: 45%;
-            border: 1px solid #146890;
-            border-radius: 15px;
-            z-index: 100;
-            padding: 5px;
-            width: 5%;
-            font-weight: bold;
-        }
-
-        #jump-to-bottom:hover {
-            background: #0d80b5;
-        }
-    `
+    stylesheet.textContent = CSS_STYLING;
     document.head.append(stylesheet);
 }
 

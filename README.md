@@ -4,7 +4,7 @@ A self-contained, browser-based Twitch chat client that joins multiple channels 
 
 ## Features
 
-- **Multi-channel chat** – Join any number of Twitch channels and view their messages merged in a single scrolling container (newest at bottom).
+- **Multi-channel chat** – Join up to 20 Twitch channels concurrently and view their messages merged in a single scrolling container (newest at bottom).
 - **Anonymous connection** – Uses Twitch's public IRC WebSocket with dummy credentials; no account or OAuth token required.
 - **Third-party emotes**
   - Global & per-channel **BetterTTV** emotes
@@ -94,4 +94,4 @@ You can also change API URLs (`BTTV_GLOBAL`, `SEVEN_TV_GLOBAL`, `BADGES_URL`, et
 - **Anonymous IRC limits** – Twitch may restrict the number of channels per anonymous connection (usually up to 50, but not guaranteed).
 - **Third-party dependencies** – Relies on BetterTTV, 7TV, and [JSON Storage](https://storage-json.vercel.app) for badges. If any of these change CORS or shut down, functionality degrades.
 - **No historical chat** – Only messages received after joining are shown.
-- **Single-file** – No build step, no external JS libraries (only a remote CSS file for base styling).
+- **Single-file** – No build step, no external JS libraries.
