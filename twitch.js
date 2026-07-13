@@ -24,6 +24,7 @@ const isFetching = new Set();
 const preloadedBadgesSet = new Set();
 const subscribed7TV = new Set();
 const currentlyRemoving = new Set();
+const addedMessages = new Set();
 
 let globalEmotes = {};
 let globalBadges = {};
@@ -31,7 +32,7 @@ let idToEmoteSet = {};
 let emoteSetToId = {};
 let profileImages = {};
 
-const getNestedProperty = (data, keys, allowUndefined=true) => {
+const getNestedProperty = (data, keys, allowUndefined = true) => {
     let current = data;
     let prevKey = null;
     const errorMessage = `Key '${keys.join(".")}' does not exist.`
@@ -101,8 +102,8 @@ const updateLocalStorage = (id) => {
 }
 
 const isValidWebUrl = (string) => {
-  const url = URL.parse(string);
-  return url !== null && (url.protocol === "http:" || url.protocol === "https:");
+    const url = URL.parse(string);
+    return url !== null && (url.protocol === "http:" || url.protocol === "https:");
 }
 
 const pickRandomColor = () => {
@@ -112,7 +113,7 @@ const pickRandomColor = () => {
 
 const makeColorViewable = (color) => {
     if (color.length != 7) return color;
-    
+
     const hexVal = color.slice(1);
     let r = parseInt(hexVal.slice(0, 2), 16);
     let g = parseInt(hexVal.slice(2, 4), 16);
@@ -120,7 +121,7 @@ const makeColorViewable = (color) => {
 
     const combination = r + g + b;
     if (combination >= 240) return color;
-    
+
     const remainder = 240 - combination;
     const splitVal = Math.floor(remainder / 3);
     r = Math.min(255, r + splitVal);
@@ -157,12 +158,12 @@ const setInitialElements = () => {
         if (e.key == 'Enter') {
             e.preventDefault();
             if (ws.readyState != ws.OPEN) return;
-            
+
             const inputedChannel = addChannelInput.value.trim();
             if (inputedChannel.length > 3 && !inputedChannel.includes(' ')) {
                 joinChannel(inputedChannel);
             }
-            
+
             addChannelInput.value = "";
         }
     })
@@ -360,7 +361,7 @@ const getGlobalBadges = () => {
         globalBadges = parsedBadges;
         return;
     }
-    
+
     fetch(BADGES_URL).then(res => res.json()).then(obj => {
         if (obj.success) {
             const parsedBadges = JSON.parse(obj.data);
@@ -398,22 +399,22 @@ const getBttvGlobalEmotes = () => {
 }
 
 const get7tvChannelEmotes = (id) => {
-    fetch(`${SEVEN_TV_USER}/${id}`).then(res => res.json()).then(data => {  
+    fetch(`${SEVEN_TV_USER}/${id}`).then(res => res.json()).then(data => {
         const profileImage = getNestedProperty(data, ['user', 'avatar_url']);
         if (profileImage && !(id in profileImages)) {
             profileImages[id] = buildProfileImageUrl(profileImage);
             setToLocalStorage('profile-images', profileImages);
-        } 
-        
+        }
+
         if ("emote_set" in data && data.emote_set != null) {
             const emotes = data.emote_set.emotes;
             const emoteSetId = data.emote_set_id;
-            
+
             emotes && emotes.map((item) => {
                 const host = build7tvEmoteUrl(item.data.host.url);
                 channelEmotes[id][item.name] = host;
             })
-            
+
             if (emoteSetId) {
                 idToEmoteSet[id] = emoteSetId;
                 emoteSetToId[emoteSetId] = id;
@@ -460,7 +461,7 @@ const getGlobalEmotes = () => {
 
 const getChannelEmotes = (id) => {
     if (id in channelEmotes) return;
-    
+
     const timestamp = getFromLocalStorage(`${id}-timestamp`);
     const currentTime = new Date().getTime();
     const cached = getFromLocalStorage(id);
@@ -470,7 +471,7 @@ const getChannelEmotes = (id) => {
         channelEmotes[id] = cached;
         return;
     }
-    
+
     const trackingEmoteSetId = idToEmoteSet[id];
     delete emoteSetToId[trackingEmoteSetId];
     delete idToEmoteSet[id];
@@ -526,21 +527,21 @@ const appendToPage = (data) => {
         profileImg.title = channelName;
         badgeFragment.append(profileImg);
     }
-    
+
     for (const fullBadge of badges) {
         const backslashIdx = fullBadge.indexOf('/');
         const badge = fullBadge.slice(0, backslashIdx);
-        
+
         if (badge in globalBadges) {
             foundBadge = true;
             const badgeUrl = globalBadges[badge];
-            
+
             if (!preloadedBadgesSet.has(badgeUrl)) {
                 const preloading = new Image();
                 preloading.src = badgeUrl;
                 preloadedBadgesSet.add(badgeUrl);
             }
-            
+
             const badgeImg = document.createElement('img');
             badgeImg.className = 'badges';
             badgeImg.src = badgeUrl;
@@ -562,7 +563,7 @@ const appendToPage = (data) => {
         if (emoteText in twitchEmotes) continue;
         twitchEmotes[emoteText] = buildTwitchEmoteUrl(emoteId);
     }
-    
+
     parentDiv.append(badgeFragment);
     let pendingText = "";
 
@@ -583,12 +584,12 @@ const appendToPage = (data) => {
         if (isEmote) {
             const emoteImg = document.createElement('img');
             emoteImg.className = 'emote';
-            emoteImg.src = token in emoteObj ? emoteObj[token] : token in twitchEmotes && validEmote.has(token) 
-                            ? twitchEmotes[token] : globalEmotes[token];
+            emoteImg.src = token in emoteObj ? emoteObj[token] : token in twitchEmotes && validEmote.has(token)
+                ? twitchEmotes[token] : globalEmotes[token];
             emoteImg.alt = token;
             emoteImg.title = token;
             msgEl.append(emoteImg);
-            
+
         } else if (isUrl) {
             const url = document.createElement('a');
             url.className = 'url';
@@ -596,7 +597,7 @@ const appendToPage = (data) => {
             url.href = token;
             url.target = "_blank";
             msgEl.append(url);
-            
+
         } else {
             pendingText += (pendingText || msgEl.hasChildNodes() ? ' ' : '') + token;
         }
@@ -609,7 +610,7 @@ const appendToPage = (data) => {
     if (foundBadge) {
         usernameDiv.style.marginLeft = '3px';
     }
-    
+
     parentDiv.append(usernameDiv);
     parentDiv.appendChild(msgEl);
 
@@ -625,13 +626,13 @@ const appendToPage = (data) => {
             const button = document.createElement('button');
             button.textContent = '\u2193';
             button.id = 'jump-to-bottom';
-            
+
             button.addEventListener('click', () => {
                 button.remove();
                 chatContainer.scrollTop = 0;
                 maxMessages = 100;
             })
-            
+
             document.body.append(button);
         }
     }
@@ -667,7 +668,7 @@ const getEmoteSetInfo = () => {
 const send7TVMessage = (id, type) => {
     const emoteSetId = id in idToEmoteSet ? idToEmoteSet[id] : null;
     if (sevenTVws.readyState != sevenTVws.OPEN || emoteSetId == null) return
-    
+
     const payload = {
         "op": type == 'subscribe' ? 35 : 36,
         "d": {
@@ -691,7 +692,6 @@ const sevenTVws = new WebSocket('wss://events.7tv.io/v3');
 
 ws.onopen = () => {
     console.log(`%c[Connected]%c Requesting access to ${[...channels].join(", ")}...`, 'color: green; font-weight: bold;', '');
-    
     ws.send('PASS SCHMOOPIIE');
     ws.send('NICK justinfan61935');
     ws.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
@@ -707,7 +707,7 @@ ws.onmessage = (event) => {
     for (const rawData of messageEvents) {
         if (rawData.startsWith('PING')) {
             ws.send('PONG :tmi.twitch.tv');
-            return; 
+            return;
         }
 
         const obj = {};
@@ -727,7 +727,7 @@ ws.onmessage = (event) => {
         if (rawData.includes('ROOMSTATE')) {
             const startIdx = rawData.indexOf('ROOMSTATE');
             const hashtag = rawData.indexOf('#', startIdx);
-            obj.channelName = rawData.slice(hashtag+1).trim().toLowerCase();
+            obj.channelName = rawData.slice(hashtag + 1).trim().toLowerCase();
 
             if (!(obj.channelName in usernameToId)) {
                 if (isValidRoomId) {
@@ -740,7 +740,6 @@ ws.onmessage = (event) => {
         if (isValidRoomId && !currentlyRemoving.has(roomId) && !isFetching.has(roomId)) {
             const username = idToUsername[roomId];
             if (username && !channels.has(username)) return;
-
             isFetching.add(roomId);
             console.log(`%c[Emotes]%c Fetching emotes...`, 'color: yellow; font-weight: bold;', '');
             getChannelEmotes(roomId);
@@ -749,7 +748,6 @@ ws.onmessage = (event) => {
         if (isValidRoomId && !currentlyRemoving.has(roomId) && roomId in idToEmoteSet && !(roomId in subscribed7TV)) {
             const username = idToUsername[roomId];
             if (username && !channels.has(username)) return;
-            
             if (sevenTVws.readyState == sevenTVws.OPEN) {
                 subscribed7TV.add(roomId);
                 send7TVMessage(roomId, 'subscribe');
@@ -778,15 +776,26 @@ ws.onmessage = (event) => {
             obj.emotes = obj.emotes.split('/');
 
             if (obj.message && !bots.has(displayName.toLowerCase())) {
-                const message = obj.message;
-                const color = obj.color;
-                const isFirstMsg = obj['first-msg'] == '1';
-                const isHighlightedMsg = obj['msg-id'] == 'highlighted-message';
-                const pageObj = {
-                    displayName, username, message, color, id: roomId, badges: obj.badges, 
-                    emotes: obj.emotes, channelName: obj.channelName, isFirstMsg, isHighlightedMsg
+                const sourceRoomId = obj['source-room-id'];
+                const sourceId = obj['source-id'];
+                const sourceChannel = sourceRoomId in idToUsername ? idToUsername[sourceRoomId] : null;
+                const shouldSkip = sourceRoomId && sourceRoomId != roomId && sourceChannel && channels.has(sourceChannel);
+
+                if (!shouldSkip && (!sourceId || !addedMessages.has(sourceId))) {
+                    if (sourceId) {
+                        if (1000 - addedMessages.size < 5) addedMessages.clear();
+                        addedMessages.add(sourceId);
+                    }
+                    const message = obj.message;
+                    const color = obj.color;
+                    const isFirstMsg = obj['first-msg'] == '1';
+                    const isHighlightedMsg = obj['msg-id'] == 'highlighted-message';
+                    const pageObj = {
+                        displayName, username, message, color, id: roomId, badges: obj.badges,
+                        emotes: obj.emotes, channelName: obj.channelName, isFirstMsg, isHighlightedMsg
+                    }
+                    appendToPage(pageObj);
                 }
-                appendToPage(pageObj);
             }
         }
 
@@ -822,7 +831,7 @@ sevenTVws.onmessage = (event) => {
         if (!data || !emoteSetId || !body || !(emoteSetId in emoteSetToId)) return;
 
         let isChanged = false;
-        const roomId = emoteSetId in emoteSetToId ? emoteSetToId[emoteSetId] : null;        
+        const roomId = emoteSetId in emoteSetToId ? emoteSetToId[emoteSetId] : null;
         const pulled = body.pulled;
         const pushed = body.pushed;
         const updated = body.updated;
@@ -842,11 +851,11 @@ sevenTVws.onmessage = (event) => {
                 const name = getNestedProperty(emote, ['value', 'name']);
                 const url = getNestedProperty(emote, ['value', 'data', 'host', 'url']);
                 if (!name || !url) continue;
-                
+
                 if (!(roomId in channelEmotes)) {
                     channelEmotes[roomId] = {};
                 }
-                
+
                 channelEmotes[roomId][name] = build7tvEmoteUrl(url);
                 isChanged = true;
             }
