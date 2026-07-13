@@ -26,6 +26,7 @@ A self-contained, browser-based Twitch chat client that joins multiple channels 
   - Input box to add channels (press **Enter**)
   - `LEAVE #channel` buttons
   - `STOP` (close sockets), `CLEAR` (empty chat), and a temporary `↓` jump-to-bottom button.
+- **Ready-to-use `index.html`** – The repo ships with a minimal `index.html` that loads the script, so you can just open it directly.
 
 ## Getting Started
 
@@ -35,22 +36,10 @@ A self-contained, browser-based Twitch chat client that joins multiple channels 
 
 ### Running the Script
 
-#### Method A: Standalone HTML page
-1. Place `twitch.js` in a folder.
-2. Create an `index.html` alongside it:
-  ```html
-  <!DOCTYPE html>
-  <html lang="en">
-    <head>
-    <meta charset="UTF-8">
-      <title>Twitch Chat</title>
-    </head>
-    <body>
-      <script src="twitch.js"></script>
-    </body>
-  </html>
-   ```
-3. Open `index.html` in your browser. The script immediately clears the page and builds its own UI.
+#### Method A: Standalone HTML page (recommended)
+The project already includes an `index.html` in the repository root that loads `twitch.js`. To run:
+1. Download/clone the repo so that `index.html` and `twitch.js` sit in the same folder.
+2. Open `index.html` in your browser. The script immediately clears the page and builds its own UI.
 
 #### Method B: Browser console / Bookmarklet
 1. Open a blank tab or any page you don’t mind replacing.
