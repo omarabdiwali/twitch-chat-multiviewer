@@ -26,6 +26,7 @@ A self-contained, browser-based Twitch chat client that joins multiple channels 
   - Input box to add channels (press **Enter**)
   - `LEAVE #channel` buttons
   - `STOP` (close sockets), `CLEAR` (empty chat), and a temporary `↓` jump-to-bottom button.
+  - `Ctrl+M` toggles visibility of the input box and control panel (distraction-free "zen mode").
 - **Ready-to-use `index.html`** – The repo ships with a minimal `index.html` that loads the script, so you can just open it directly.
 
 ## Getting Started
@@ -54,6 +55,7 @@ The project already includes an `index.html` in the repository root that loads `
 3. **Stop all** – Click `STOP` to close both the Twitch IRC and 7TV WebSockets and remove the control panel.
 4. **Clear chat** – Click `CLEAR` to empty the message list.
 5. **Scrolling** – The chat uses `flex-direction: column-reverse`. If you scroll up, a `↓` button appears to jump back to the latest messages.
+6. **Hide/Show controls** – Press `Ctrl+M` to toggle the visibility of the channel input and button container. This is handy for a clean, distraction-free view of just the chat messages (press `Ctrl+M` again to bring the controls back).
 
 ## How It Works (Technical Overview)
 

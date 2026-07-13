@@ -153,7 +153,7 @@ const setInitialElements = () => {
 
     const addChannelInput = document.createElement('input');
     addChannelInput.id = "channel-input";
-    addChannelInput.placeholder = "Add channel...";
+    addChannelInput.placeholder = "Add channel - Ctrl+M to show/hide";
     addChannelInput.addEventListener('keydown', (e) => {
         if (e.key == 'Enter') {
             e.preventDefault();
@@ -168,6 +168,18 @@ const setInitialElements = () => {
         }
     })
 
+    const changeUIView = (e) => {
+        const channelInput = document.getElementById('channel-input');
+        const buttonList = document.getElementById('buttons');
+
+        if (channelInput && buttonList && e.ctrlKey && !e.shiftKey && e.code == 'KeyM') {
+            e.preventDefault();
+            channelInput.classList.toggle('hidden');
+            buttonList.classList.toggle('hidden');
+        }
+    }
+
+    document.addEventListener('keydown', changeUIView);
     document.body.append(addChannelInput);
 
     const closeSocketButton = document.createElement('button');
@@ -290,6 +302,10 @@ const setInitialElements = () => {
             width: 20%;
             z-index: 100;
             gap: 3px;
+        }
+        
+        .hidden {
+            display: none !important;
         }
         
         .leave-button, #close-socket, #clear-button {
