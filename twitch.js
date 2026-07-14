@@ -225,6 +225,7 @@ let globalBadges = {};
 let idToEmoteSet = {};
 let emoteSetToId = {};
 let profileImages = {};
+let maxMessages = 150;
 
 const getNestedProperty = (data, keys, allowUndefined = true) => {
     let current = data;
@@ -333,6 +334,31 @@ const setInitialElements = () => {
     const chatContainer = document.createElement('div');
     chatContainer.id = 'chat-container';
     document.body.append(chatContainer);
+
+    const jumpToBottom = document.createElement('button');
+    jumpToBottom.textContent = '\u2193';
+    jumpToBottom.id = 'jump-to-bottom';
+    jumpToBottom.className = 'hidden';
+
+    jumpToBottom.addEventListener('click', () => {
+        const chatContainer = document.getElementById('chat-container');
+        if (!chatContainer) return;
+        chatContainer.scrollTop = 0;
+        maxMessages = 150;
+    })
+
+    chatContainer.addEventListener('scroll', (e) => {
+        const isAtBottom = chatContainer.scrollTop >= -40;
+        if (isAtBottom) {
+            jumpToBottom.isConnected && jumpToBottom.classList.add('hidden');
+            maxMessages = 150;
+        } else {
+            jumpToBottom.isConnected && jumpToBottom.classList.remove('hidden');
+            maxMessages = 300;
+        }
+    })
+
+    document.body.append(jumpToBottom);
 
     const buttonContainer = document.createElement('div');
     buttonContainer.id = 'buttons';
@@ -458,6 +484,9 @@ const get7tvChannelEmotes = (id) => {
 
             emotes && emotes.map((item) => {
                 const host = build7tvEmoteUrl(item.data.host.url);
+                if (!(id in channelEmotes)) {
+                    channelEmotes[id] = {};
+                }
                 channelEmotes[id][item.name] = host;
             })
 
@@ -483,6 +512,9 @@ const getBttvChannelEmotes = (id) => {
                 if (item.code in channelEmotes[id]) {
                     const currentImageUrl = channelEmotes[id][item.code];
                     if (!currentImageUrl.startsWith('https://cdn.betterttv.net/emote')) return;
+                }
+                if (!(id in channelEmotes)) {
+                    channelEmotes[id] = {};
                 }
                 channelEmotes[id][item.code] = host;
             })
@@ -544,6 +576,8 @@ const buildUsernameText = (displayName, username) => {
 const appendToPage = (data) => {
     const { displayName, username, message, color, id, badges, emotes, channelName, isFirstMsg, isHighlighted } = data;
     const chatContainer = document.getElementById('chat-container');
+    if (!chatContainer) return;
+
     const emoteObj = id in channelEmotes ? channelEmotes[id] : {};
     const tokens = message.split(' ');
     const channelProfileImage = profileImages[id];
@@ -660,27 +694,9 @@ const appendToPage = (data) => {
     parentDiv.append(usernameDiv);
     parentDiv.appendChild(msgEl);
 
-    const isAtBottom = chatContainer.scrollTop >= -30;
-    const jumpButton = document.getElementById('jump-to-bottom');
-    let maxMessages = isAtBottom ? 100 : 300;
-
+    const isAtBottom = chatContainer.scrollTop >= -40;
     if (isAtBottom) {
-        jumpButton && jumpButton.remove();
         chatContainer.scrollTop = 0;
-    } else {
-        if (!jumpButton) {
-            const button = document.createElement('button');
-            button.textContent = '\u2193';
-            button.id = 'jump-to-bottom';
-
-            button.addEventListener('click', () => {
-                button.remove();
-                chatContainer.scrollTop = 0;
-                maxMessages = 100;
-            })
-
-            document.body.append(button);
-        }
     }
 
     chatContainer.prepend(parentDiv);
@@ -935,6 +951,10 @@ sevenTVws.onerror = (error) => {
 
 sevenTVws.onclose = () => {
     console.log('%c[7TV Disconnected]%c 7TV connection closed.', 'color: red; font-weight: bold;', '');
+    const buttons = document.getElementById("buttons");
+    const inputEl = document.getElementById("channel-input");
+    if (buttons) buttons.remove();
+    if (inputEl) inputEl.remove();
 }
 
 const leaveChannel = (channelName) => {
@@ -960,6 +980,7 @@ const joinChannel = (channelName) => {
 const createLeaveButton = (channelName) => {
     const leaveChannelButton = document.createElement('button');
     const buttonContainer = document.getElementById('buttons');
+    if (!buttonContainer) return;
 
     leaveChannelButton.className = 'leave-button';
     leaveChannelButton.innerText = `LEAVE #${channelName}`;

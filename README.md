@@ -2,6 +2,12 @@
 
 A self-contained, browser-based Twitch chat client that joins multiple channels over anonymous IRC, renders messages in a custom UI, and augments them with **BetterTTV**, **7TV**, and native Twitch emotes, badges, and profile images.
 
+## Live Demo
+
+🚀 **Try it now at: https://multichat-twitch.vercel.app**
+
+No downloads or setup required - just open the link and start adding channels!
+
 ## Features
 
 - **Multi-channel chat** – Join up to 20 Twitch channels concurrently and view their messages merged in a single scrolling container (newest at bottom).
@@ -31,19 +37,22 @@ A self-contained, browser-based Twitch chat client that joins multiple channels 
 
 ## Getting Started
 
-### Prerequisites
+### Option 1: Use the Live Version (Recommended)
+Simply visit **https://multichat-twitch.vercel.app** in your browser - no installation needed!
+
+### Option 2: Run Locally
+
+#### Prerequisites
 - A modern web browser (Chrome, Firefox, Edge, etc.)
 - Internet access (for WebSocket connections and API fetches)
 
-### Running the Script
-
-#### Method A: Standalone HTML page (recommended)
-The project already includes an `index.html` in the repository root that loads `twitch.js`. To run:
+#### Method A: Standalone HTML page
+The project includes an `index.html` in the repository root that loads `twitch.js`. To run locally:
 1. Download/clone the repo so that `index.html` and `twitch.js` sit in the same folder.
 2. Open `index.html` in your browser. The script immediately clears the page and builds its own UI.
 
 #### Method B: Browser console / Bookmarklet
-1. Open a blank tab or any page you don’t mind replacing.
+1. Open a blank tab or any page you don't mind replacing.
 2. Open the developer console (F12).
 3. Paste the entire contents of `twitch.js` and press **Enter**.
   *(You could also wrap the code in an IIFE and save it as a bookmarklet.)*
@@ -91,7 +100,5 @@ You can also change API URLs (`BTTV_GLOBAL`, `SEVEN_TV_GLOBAL`, `BADGES_URL`, et
 ## Limitations & Notes
 
 - **Read-only** – The script only listens; you cannot send chat messages.
-- **Anonymous IRC limits** – Twitch may restrict the number of channels per anonymous connection (usually up to 50, but not guaranteed).
-- **Third-party dependencies** – Relies on BetterTTV, 7TV, and [JSON Storage](https://storage-json.vercel.app) for badges. If any of these change CORS or shut down, functionality degrades.
 - **No historical chat** – Only messages received after joining are shown.
 - **Single-file** – No build step, no external JS libraries.
