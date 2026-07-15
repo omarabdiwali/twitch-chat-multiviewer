@@ -257,6 +257,25 @@ const isValidTwitchUsername = (username) => {
     return regex.test(username);
 }
 
+const purgeLocalStorage = () => {
+    const currentTime = new Date().getTime();
+    const removalIds = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.endsWith('-timestamp')) {
+            const idEnd = key.indexOf('-');
+            const id = key.slice(0, idEnd);
+            const timestamp = JSON.parse(localStorage.getItem(key));
+            if (currentTime - timestamp < KEEP_ALIVE) continue;
+            removalIds.push(id);
+        }
+    }
+    for (const id of removalIds) {
+        localStorage.removeItem(id);
+        localStorage.removeItem(`${id}-timestamp`);
+    }
+}
+
 const parseCommandMessage = (message) => {
     const command = COMMANDS.find((cmd) => message.startsWith(cmd));
 
@@ -831,6 +850,7 @@ const send7TVMessage = (id, type) => {
 }
 
 setInitialElements();
+purgeLocalStorage();
 getEmoteSetInfo();
 getGlobalBadges();
 getGlobalEmotes();
