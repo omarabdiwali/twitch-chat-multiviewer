@@ -4,6 +4,16 @@ const SEVEN_TV_GLOBAL = "https://7tv.io/v3/emote-sets/global";
 const SEVEN_TV_USER = "https://7tv.io/v3/users/twitch";
 const BTTV_USER = "https://api.betterttv.net/3/cached/users/twitch";
 const BADGES_URL = "https://storage-json.vercel.app/api/data/get?id=61430bf9-eca4-4f36-a29a-4ed4f4ead8ce";
+const COMMANDS = ['!hide ', '!show ', '!focus ', '!unfocus ', '!hidden', '!focused', '!commands'];
+const COMMAND_HELP = [
+    `!hide [username] - Hides user's messages from the chat`,
+    `!show [username] - Shows user's messages if previously hidden`,
+    `!focus [username] - Highlights the user's messages in chat`,
+    `!unfocus [username] - Removes the user's previous highlighting`,
+    `!hidden - Shows the list of users whose messages are hidden`,
+    `!focused - Shows the list of users whose messages are highlighted`,
+    `!commands - Shows the list of available commands`
+]
 const COLORS = [
     'red', 'green', 'blue', 'rgb(178,34,34)', 'rgb(255,127,80)', 'rgb(154,205,50)', 'rgb(255,69,0)',
     'rgb(46,139,87)', 'rgb(218,165,32)', 'rgb(210,105,30)', 'rgb(95,158,160)', 'rgb(30,144,255)',
@@ -85,7 +95,7 @@ const CSS_STYLING = `
         padding: 0 10px 0 10px;
         contain: content;
     }
-    .parent, .parent-highlighted {
+    .parent, .parent-highlighted, .highlight-user {
         display: inline;
         margin: 2px;
     }
@@ -93,6 +103,12 @@ const CSS_STYLING = `
         background-color: #cd38cd27;
         border-inline-start: .25rem solid #cd38cd;
         border-inline-end: .25rem solid #cd38cd;
+        padding: 2px 6px 2px 6px;
+    }
+    .highlight-user {
+        background: #33aed427;
+        border-inline-start: .25rem solid #33aed4;
+        border-inline-end: .25rem solid #33aed4;
         padding: 2px 6px 2px 6px;
     }
     .username {
@@ -184,7 +200,15 @@ const CSS_STYLING = `
         left: 58%;
         width: 40%;
         height: 5%;
-        padding: 7px !important;
+        padding: 1% !important;
+    }
+    #error-message {
+        color: red;
+        position: absolute;
+        top: 7%;
+        left: 58%;
+        z-index: 100;
+        margin-top: 5px;
     }
     #jump-to-bottom {
         position: absolute;
@@ -206,7 +230,8 @@ const CSS_STYLING = `
 
 const channels = new Set();
 const roomIds = new Set();
-const bots = new Set(["Fossabot", "PotatBotat", "Nightbot", "StreamElements"].map((bot) => { return bot.toLowerCase() }));
+const hidden = new Set(["Fossabot", "PotatBotat", "Nightbot", "StreamElements"].map((bot) => { return bot.toLowerCase() }));
+const highlightUsers = new Set();
 
 const channelEmotes = {};
 const updateEmotes = {};
@@ -226,6 +251,53 @@ let idToEmoteSet = {};
 let emoteSetToId = {};
 let profileImages = {};
 let maxMessages = 150;
+
+const isValidTwitchUsername = (username) => {
+    const regex = /^[a-zA-Z][a-zA-Z0-9_]{2,24}$/;
+    return regex.test(username);
+}
+
+const parseCommandMessage = (message) => {
+    const command = COMMANDS.find((cmd) => message.startsWith(cmd));
+
+    if (command == '!commands') {
+        if (message != command) return false;
+        let infoMessage = "[username] - Adds the user's chat to the viewer.\n";
+        for (let i = 0; i < COMMANDS.length; i++) {
+            infoMessage += `${COMMAND_HELP.at(i)}.\n`;
+        }
+        alert(infoMessage);
+        return true;
+    } else if (command == '!hidden' || command == '!focused') {
+        if (message != command) return false;
+        let infoMessage = "";
+        const data = message == '!hidden' ? hidden : highlightUsers;
+
+        if (data.size == 0) {
+            infoMessage = `There are currently no ${command.slice(1)} users.`;
+        } else {
+            infoMessage += `Current ${command.slice(1)} users:\n`;
+            const users = [...data].join(' - ');
+            infoMessage += `${users}`;
+        }
+
+        alert(infoMessage);
+        return true;
+    }
+
+    const usernameStart = message.indexOf(' ');
+    if (usernameStart == -1 || command == undefined) return false;
+    const username = message.slice(usernameStart + 1);
+    if (!isValidTwitchUsername(username)) return false;
+
+    if (command == '!hide ' || command == '!show ') {
+        command == '!hide ' ? hideUser(username) : showUser(username);
+    } else if (command == '!focus ' || command == '!unfocus ') {
+        command == '!focus ' ? highlightUsers.add(username) : highlightUsers.delete(username);
+    }
+
+    return true;
+}
 
 const getNestedProperty = (data, keys, allowUndefined = true) => {
     let current = data;
@@ -335,6 +407,13 @@ const setInitialElements = () => {
     chatContainer.id = 'chat-container';
     document.body.append(chatContainer);
 
+    const errorMessage = document.createElement('div');
+    errorMessage.textContent = 'Invalid command/username!';
+    errorMessage.id = 'error-message';
+    errorMessage.className = 'hidden';
+
+    document.body.append(errorMessage);
+
     const jumpToBottom = document.createElement('button');
     jumpToBottom.textContent = '\u2193';
     jumpToBottom.id = 'jump-to-bottom';
@@ -365,18 +444,25 @@ const setInitialElements = () => {
 
     const addChannelInput = document.createElement('input');
     addChannelInput.id = "channel-input";
-    addChannelInput.placeholder = "Add channel - Ctrl+M to show/hide";
+    addChannelInput.placeholder = "!commands - Ctrl+M to show/hide";
     addChannelInput.addEventListener('keydown', (e) => {
         if (e.key == 'Enter') {
             e.preventDefault();
             if (ws.readyState != ws.OPEN) return;
+            const inputedChannel = addChannelInput.value.trim().toLowerCase();
+            const isCommand = parseCommandMessage(inputedChannel);
+            const isValidUsername = isValidTwitchUsername(inputedChannel);
 
-            const inputedChannel = addChannelInput.value.trim();
-            if (inputedChannel.length >= 3 && !inputedChannel.includes(' ')) {
+            if (!isCommand && !isValidUsername) {
+                errorMessage.isConnected && errorMessage.classList.remove('hidden');
+            } else if (!isCommand && isValidUsername) {
+                errorMessage.isConnected && errorMessage.classList.add('hidden');
                 joinChannel(inputedChannel);
             }
 
             addChannelInput.value = "";
+        } else {
+            errorMessage.isConnected && errorMessage.classList.add('hidden');
         }
     })
 
@@ -583,7 +669,8 @@ const appendToPage = (data) => {
     const channelProfileImage = profileImages[id];
 
     const parentDiv = document.createElement('div');
-    parentDiv.className = isFirstMsg ? 'parent-highlighted' : 'parent';
+    const highlightUser = highlightUsers.has(username.toLowerCase()) || highlightUsers.has(displayName.toLowerCase());
+    parentDiv.className = isFirstMsg ? 'parent-highlighted' : highlightUser ? 'highlight-user' : 'parent';
 
     const usernameDiv = document.createElement('a');
     usernameDiv.target = "_blank";
@@ -837,7 +924,7 @@ ws.onmessage = (event) => {
             obj.badges = obj.badges.split(',');
             obj.emotes = obj.emotes.split('/');
 
-            if (obj.message && !bots.has(displayName.toLowerCase())) {
+            if (obj.message && !hidden.has(displayName.toLowerCase())) {
                 const sourceRoomId = obj['source-room-id'];
                 const sourceId = obj['source-id'];
                 const sourceChannel = sourceRoomId in idToUsername ? idToUsername[sourceRoomId] : null;
@@ -1008,12 +1095,12 @@ const removeChannelFromData = (channelName) => {
     }
 }
 
-const addBot = (bot) => {
-    bot = bot.toLowerCase();
-    bots.add(bot);
+const hideUser = (user) => {
+    user = user.toLowerCase();
+    hidden.add(user);
 }
 
-const removeBot = (bot) => {
-    bot = bot.toLowerCase();
-    bots.delete(bot);
+const showUser = (user) => {
+    user = user.toLowerCase();
+    hidden.delete(user);
 }
