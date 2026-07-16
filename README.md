@@ -35,6 +35,9 @@ No downloads or setup required - just open the link and start adding channels!
 - **Bot filtering** – Ignores messages from common bots (Fossabot, PotatBotat, Nightbot, StreamElements).
 - **Input Validation** – Real-time validation of Twitch usernames and commands with helpful error messages.
 - **LocalStorage caching** – Emotes, badges, profile images, and emote-set mappings are cached to reduce API calls (channel emotes refresh after 4 hours).
+- **Connection resilience**
+  - Automatic handling of socket disconnections
+  - **Reconnect** button appears when connections are lost, allowing manual reconnection
 - **Simple controls**
   - Input box to add channels or execute commands (press **Enter**)
   - `LEAVE #channel` buttons
@@ -73,6 +76,7 @@ The project includes an `index.html` in the repository root that loads `twitch.j
 4. **Clear chat** – Click `CLEAR` to empty the message list.
 5. **Scrolling** – The chat uses `flex-direction: column-reverse`. If you scroll up, a `↓` button appears to jump back to the latest messages.
 6. **Hide/Show controls** – Press `Ctrl+M` to toggle the visibility of the channel input and button container. This is handy for a clean, distraction-free view of just the chat messages (press `Ctrl+M` again to bring the controls back).
+7. **Reconnect** – If the WebSocket connections drop (due to network issues or server maintenance), a **Reconnect** button will appear. Click it to restore your chat connections without refreshing the page.
 
 ### User Management Commands
 
@@ -102,6 +106,7 @@ You can use special commands in the input field to manage which users appear in 
 | `parseRawData()` | Splits IRC messages on `\r\n` and parses tag key-value pairs. |
 | `parseCommandMessage()` | Parses and executes user management commands like hide/show/focus/unfocus. |
 | `isValidTwitchUsername()` | Validates usernames against Twitch's naming conventions using regex. |
+| `toggleElementsVisibility()` | Manages UI visibility state when connections are lost/restored. |
 | LocalStorage | Keys: `global`, `{roomId}`, `{roomId}-timestamp`, `twitch-badges`, `profile-images`, `id-to-emote-set`, `emote-set-to-id`. |
 
 ### Emote Resolution Order
@@ -118,6 +123,14 @@ When you press Enter in the input field:
 3. Valid commands are parsed and executed (hide/show/focus/unfocus)
 4. Valid usernames result in joining that channel
 5. The input field is cleared after processing
+
+### Reconnection Mechanism
+When WebSocket connections are lost:
+1. The control panel and input are hidden, and a **Reconnect** button appears
+2. Clicking Reconnect attempts to re-establish both Twitch IRC and 7TV WebSocket connections
+3. Reconnection attempts are rate-limited to prevent spamming (minimum 2.5 second interval)
+4. On successful reconnection, all previously joined channels are automatically rejoined
+5. The UI returns to normal state with controls visible again
 
 ## Configuration
 
@@ -147,3 +160,4 @@ You can also change API URLs (`BTTV_GLOBAL`, `SEVEN_TV_GLOBAL`, `BADGES_URL`, et
 - **No historical chat** – Only messages received after joining are shown.
 - **Single-file** – No build step, no external JS libraries.
 - **Command scope** – Hide/focus commands only affect the current session and are not persisted.
+- **Reconnection state** – The Reconnect button only restores connections; it does not preserve channel subscriptions across page refreshes.

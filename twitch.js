@@ -1,4 +1,6 @@
 const KEEP_ALIVE = 14400000; // 4 hours before re-fetch of channel emotes
+const TWITCH_URL = 'wss://irc-ws.chat.twitch.tv/';
+const SEVEN_TV_URL = 'wss://events.7tv.io/v3';
 const BTTV_GLOBAL = "https://api.betterttv.net/3/cached/emotes/global";
 const SEVEN_TV_GLOBAL = "https://7tv.io/v3/emote-sets/global";
 const SEVEN_TV_USER = "https://7tv.io/v3/users/twitch";
@@ -168,7 +170,7 @@ const CSS_STYLING = `
     .hidden {
         display: none !important;
     }
-    .leave-button, #close-socket, #clear-button {
+    .leave-button, #close-socket, #clear-button, #reconnect-button {
         color: black !important;
         border-radius: 7px !important;
         padding: 3px !important;
@@ -191,6 +193,17 @@ const CSS_STYLING = `
     }
     #clear-button:hover {
         background: lightgreen !important;
+    }
+    #reconnect-button {
+        background: yellow !important;
+        position: absolute;
+        top: 15%;
+        left: 75%;
+        width: 20%;
+        z-index: 100;
+    }
+    #reconnect-button:hover {
+        background: lightyellow !important;
     }
     #channel-input {
         background: white !important;
@@ -229,7 +242,6 @@ const CSS_STYLING = `
 `
 
 const channels = new Set();
-const roomIds = new Set();
 const hidden = new Set(["Fossabot", "PotatBotat", "Nightbot", "StreamElements"].map((bot) => { return bot.toLowerCase() }));
 const highlightUsers = new Set();
 
@@ -250,7 +262,8 @@ let globalBadges = {};
 let idToEmoteSet = {};
 let emoteSetToId = {};
 let profileImages = {};
-let maxMessages = 150;
+let maxMessages = 250;
+let lastRecAttempt = null;
 
 const isValidTwitchUsername = (username) => {
     const regex = /^[a-zA-Z][a-zA-Z0-9_]{2,24}$/;
@@ -426,6 +439,30 @@ const setInitialElements = () => {
     chatContainer.id = 'chat-container';
     document.body.append(chatContainer);
 
+    const reconnectButton = document.createElement('button');
+    reconnectButton.textContent = 'Reconnect';
+    reconnectButton.id = 'reconnect-button';
+    reconnectButton.className = 'hidden';
+
+    reconnectButton.addEventListener('click', () => {
+        if (ws.readyState != ws.CLOSED || sevenTVws.readyState != sevenTVws.CLOSED) return;
+        const currentTime = new Date().getTime();
+        if (lastRecAttempt == null || currentTime - lastRecAttempt > 2500) {
+            ws = twitchWebSocket();
+            sevenTVws = sevenTVWebSocket();
+        } else {
+            reconnectButton.textContent = 'Reconnecting...';
+            setTimeout(() => {
+                ws = twitchWebSocket();
+                sevenTVws = sevenTVWebSocket();
+                reconnectButton.textContent = 'Reconnect';
+            }, 2500);
+        }
+        lastRecAttempt = currentTime;
+    })
+
+    document.body.append(reconnectButton);
+
     const errorMessage = document.createElement('div');
     errorMessage.textContent = 'Invalid command/username!';
     errorMessage.id = 'error-message';
@@ -442,17 +479,17 @@ const setInitialElements = () => {
         const chatContainer = document.getElementById('chat-container');
         if (!chatContainer) return;
         chatContainer.scrollTop = 0;
-        maxMessages = 150;
+        maxMessages = 250;
     })
 
     chatContainer.addEventListener('scroll', (e) => {
         const isAtBottom = chatContainer.scrollTop >= -40;
         if (isAtBottom) {
             jumpToBottom.isConnected && jumpToBottom.classList.add('hidden');
-            maxMessages = 150;
+            maxMessages = 250;
         } else {
             jumpToBottom.isConnected && jumpToBottom.classList.remove('hidden');
-            maxMessages = 300;
+            maxMessages = 500;
         }
     })
 
@@ -466,8 +503,8 @@ const setInitialElements = () => {
     addChannelInput.placeholder = "!commands - Ctrl+M to show/hide";
     addChannelInput.addEventListener('keydown', (e) => {
         if (e.key == 'Enter') {
+            if (ws.readyState != ws.OPEN || sevenTVws.readyState != sevenTVws.OPEN) return;
             e.preventDefault();
-            if (ws.readyState != ws.OPEN) return;
             const inputedChannel = addChannelInput.value.trim().toLowerCase();
             const isCommand = parseCommandMessage(inputedChannel);
             const isValidUsername = isValidTwitchUsername(inputedChannel);
@@ -488,8 +525,10 @@ const setInitialElements = () => {
     const changeUIView = (e) => {
         const channelInput = document.getElementById('channel-input');
         const buttonList = document.getElementById('buttons');
+        const reconnectButton = document.getElementById('reconnect-button');
 
         if (channelInput && buttonList && e.ctrlKey && !e.shiftKey && e.code == 'KeyM') {
+            if (reconnectButton && !reconnectButton.classList.contains('hidden')) return;
             e.preventDefault();
             channelInput.classList.toggle('hidden');
             buttonList.classList.toggle('hidden');
@@ -504,11 +543,8 @@ const setInitialElements = () => {
     closeSocketButton.innerText = 'STOP';
 
     closeSocketButton.addEventListener('click', () => {
-        buttonContainer.remove();
-        addChannelInput.remove();
-        if (ws.readyState != ws.OPEN) return;
+        if (ws.readyState != ws.OPEN || sevenTVws.readyState != sevenTVws.OPEN) return;
         ws.close();
-        if (sevenTVws.readyState != sevenTVws.OPEN) return;
         sevenTVws.close();
     })
 
@@ -578,9 +614,13 @@ const getBttvGlobalEmotes = () => {
 const get7tvChannelEmotes = (id) => {
     fetch(`${SEVEN_TV_USER}/${id}`).then(res => res.json()).then(data => {
         const profileImage = getNestedProperty(data, ['user', 'avatar_url']);
-        if (profileImage && !(id in profileImages)) {
-            profileImages[id] = buildProfileImageUrl(profileImage);
-            setToLocalStorage('profile-images', profileImages);
+        if (profileImage) {
+            const previousURL = id in profileImages ? profileImages[id] : null;
+            const currentURL = buildProfileImageUrl(profileImage);
+            if (previousURL != currentURL) {
+                profileImages[id] = currentURL;
+                setToLocalStorage('profile-images', profileImages);
+            }
         }
 
         if ("emote_set" in data && data.emote_set != null) {
@@ -849,6 +889,240 @@ const send7TVMessage = (id, type) => {
     sevenTVws.send(JSON.stringify(payload));
 }
 
+const toggleElementsVisibility = (hide) => {
+    const buttons = document.getElementById("buttons");
+    const inputEl = document.getElementById("channel-input");
+    const reconnect = document.getElementById('reconnect-button');
+    if (hide) {
+        if (buttons) buttons.classList.add('hidden');
+        if (inputEl) inputEl.classList.add('hidden');
+        if (reconnect) reconnect.classList.remove('hidden');
+    } else {
+        if (buttons) buttons.classList.remove('hidden');
+        if (inputEl) inputEl.classList.remove('hidden');
+        if (reconnect) reconnect.classList.add('hidden');
+    }
+}
+
+const twitchWebSocket = () => {
+    let ws = new WebSocket(TWITCH_URL);
+
+    ws.onopen = () => {
+        toggleElementsVisibility(false);
+        console.log(`%c[Twitch Connected]%c Connected to Twitch WebSocket.`, 'color: green; font-weight: bold;', '');
+        ws.send('PASS SCHMOOPIIE');
+        ws.send('NICK justinfan61935');
+        ws.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
+        for (const channel of channels) {
+            ws.send(`JOIN #${channel}`);
+        }
+    };
+
+    ws.onmessage = (event) => {
+        const messageEvents = parseRawData(event.data);
+
+        for (const rawData of messageEvents) {
+            if (rawData.startsWith('PING')) {
+                ws.send('PONG :tmi.twitch.tv');
+                return;
+            }
+
+            const obj = {};
+            const dataItems = rawData.split(';');
+
+            for (const item of dataItems) {
+                const keyVal = item.split('=');
+                if (keyVal.length == 2) {
+                    const [key, val] = keyVal;
+                    obj[key] = val;
+                }
+            }
+
+            const roomId = obj['room-id'];
+            const isValidRoomId = checkValueIsInteger(roomId);
+
+            if (rawData.includes('ROOMSTATE')) {
+                const startIdx = rawData.indexOf('ROOMSTATE');
+                const hashtag = rawData.indexOf('#', startIdx);
+                obj.channelName = rawData.slice(hashtag + 1).trim().toLowerCase();
+
+                if (!(obj.channelName in usernameToId)) {
+                    if (isValidRoomId) {
+                        usernameToId[obj.channelName] = roomId;
+                        idToUsername[roomId] = obj.channelName;
+                    }
+                }
+            }
+
+            if (isValidRoomId && !currentlyRemoving.has(roomId) && !isFetching.has(roomId)) {
+                const username = idToUsername[roomId];
+                if (username && !channels.has(username)) return;
+                isFetching.add(roomId);
+                console.log(`%c[Emotes]%c Fetching emotes...`, 'color: yellow; font-weight: bold;', '');
+                getChannelEmotes(roomId);
+            }
+
+            if (isValidRoomId && !currentlyRemoving.has(roomId) && roomId in idToEmoteSet && !(roomId in subscribed7TV)) {
+                const username = idToUsername[roomId];
+                if (username && !channels.has(username)) return;
+                if (sevenTVws.readyState == sevenTVws.OPEN) {
+                    subscribed7TV.add(roomId);
+                    send7TVMessage(roomId, 'subscribe');
+                }
+            }
+
+            if (rawData.includes('PRIVMSG')) {
+                const privMsgIdx = rawData.indexOf('PRIVMSG');
+                const messageStart = privMsgIdx != -1 ? rawData.indexOf(" :", privMsgIdx) : -1;
+                const message = messageStart != -1 ? rawData.slice(messageStart + 2).trim() : '';
+                const channelName = rawData.slice(privMsgIdx + 9, messageStart);
+                const displayName = obj['display-name'];
+
+                let username = displayName;
+                const userType = obj["user-type"];
+
+                if (userType) {
+                    const usernameStart = userType.indexOf(':') + 1;
+                    const usernameEnd = userType.indexOf('!');
+                    username = userType.slice(usernameStart, usernameEnd);
+                }
+
+                obj.channelName = channelName.toLowerCase();
+                obj.message = message;
+                obj.badges = obj.badges.split(',');
+                obj.emotes = obj.emotes.split('/');
+
+                if (obj.message && !hidden.has(displayName.toLowerCase())) {
+                    const sourceRoomId = obj['source-room-id'];
+                    const sourceId = obj['source-id'];
+                    const sourceChannel = sourceRoomId in idToUsername ? idToUsername[sourceRoomId] : null;
+                    const shouldSkip = sourceRoomId && sourceRoomId != roomId && sourceChannel && channels.has(sourceChannel);
+
+                    if (!shouldSkip && (!sourceId || !addedMessages.has(sourceId))) {
+                        if (sourceId) {
+                            if (1000 - addedMessages.size < 5) addedMessages.clear();
+                            addedMessages.add(sourceId);
+                        }
+                        const message = obj.message;
+                        const color = obj.color;
+                        const isFirstMsg = obj['first-msg'] == '1';
+                        const isHighlightedMsg = obj['msg-id'] == 'highlighted-message';
+                        const pageObj = {
+                            displayName, username, message, color, id: roomId, badges: obj.badges,
+                            emotes: obj.emotes, channelName: obj.channelName, isFirstMsg, isHighlightedMsg
+                        }
+                        appendToPage(pageObj);
+                    }
+                }
+            }
+
+            if (obj.channelName && !(obj.channelName in usernameToId)) {
+                if (isValidRoomId) {
+                    usernameToId[obj.channelName] = roomId;
+                    idToUsername[roomId] = obj.channelName;
+                }
+            }
+        }
+    };
+
+    ws.onerror = (error) => {
+        console.error('Twitch WebSocket Error:', error);
+    };
+
+    ws.onclose = () => {
+        toggleElementsVisibility(true);
+        console.log('%c[Twitch Disconnected]%c Twitch Connection closed.', 'color: red; font-weight: bold;', '');
+    }
+
+    return ws;
+}
+
+const sevenTVWebSocket = () => {
+    let sevenTVws = new WebSocket(SEVEN_TV_URL);
+
+    sevenTVws.onopen = () => {
+        toggleElementsVisibility(false);
+        console.log(`%c[7TV Connected]%c Connected to 7TV WebSocket.`, 'color: green; font-weight: bold;', '');
+        for (const id of subscribed7TV) {
+            send7TVMessage(id, 'subscribe');
+        }
+    }
+
+    sevenTVws.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        if (message.op == 2) return;
+        if (message.op == 0) {
+            const data = message.d;
+            const emoteSetId = getNestedProperty(data, ['body', 'id']);
+            const body = getNestedProperty(message, ['d', 'body']);
+
+            if (!data || !emoteSetId || !body || !(emoteSetId in emoteSetToId)) return;
+
+            let isChanged = false;
+            const roomId = emoteSetId in emoteSetToId ? emoteSetToId[emoteSetId] : null;
+            const pulled = body.pulled;
+            const pushed = body.pushed;
+            const updated = body.updated;
+
+            if (pulled) {
+                for (const emote of pulled) {
+                    const name = getNestedProperty(emote, ['old_value', 'name']);
+                    if (name && roomId in channelEmotes && name in channelEmotes[roomId]) {
+                        delete channelEmotes[roomId][name];
+                        isChanged = true;
+                    }
+                }
+            }
+
+            if (pushed) {
+                for (const emote of pushed) {
+                    const name = getNestedProperty(emote, ['value', 'name']);
+                    const url = getNestedProperty(emote, ['value', 'data', 'host', 'url']);
+                    if (!name || !url) continue;
+
+                    if (!(roomId in channelEmotes)) {
+                        channelEmotes[roomId] = {};
+                    }
+
+                    channelEmotes[roomId][name] = build7tvEmoteUrl(url);
+                    isChanged = true;
+                }
+            }
+
+            if (updated) {
+                for (const changes of updated) {
+                    const oldName = getNestedProperty(changes, ['old_value', 'name']);
+                    const newName = getNestedProperty(changes, ['value', 'name']);
+                    const newUrl = getNestedProperty(changes, ['value', 'data', 'host', 'url']);
+
+                    if (oldName in channelEmotes[roomId] && newName && newUrl) {
+                        channelEmotes[roomId][newName] = channelEmotes[roomId][oldName];
+                        delete channelEmotes[roomId][oldName];
+                        isChanged = true;
+                    }
+                }
+            }
+
+            if (isChanged) {
+                const timestampKey = `${roomId}-timestamp`;
+                setToLocalStorage(roomId, channelEmotes[roomId]);
+                setToLocalStorage(timestampKey, new Date().getTime());
+            }
+        }
+    }
+
+    sevenTVws.onerror = (error) => {
+        console.error('7TV WebSocket Error:', error);
+    };
+
+    sevenTVws.onclose = () => {
+        toggleElementsVisibility(true);
+        console.log('%c[7TV Disconnected]%c 7TV connection closed.', 'color: red; font-weight: bold;', '');
+    }
+
+    return sevenTVws;
+}
+
 setInitialElements();
 purgeLocalStorage();
 getEmoteSetInfo();
@@ -856,213 +1130,8 @@ getGlobalBadges();
 getGlobalEmotes();
 getProfileImages();
 
-const ws = new WebSocket('wss://irc-ws.chat.twitch.tv/');
-const sevenTVws = new WebSocket('wss://events.7tv.io/v3');
-
-ws.onopen = () => {
-    console.log(`%c[Connected]%c Requesting access to ${[...channels].join(", ")}...`, 'color: green; font-weight: bold;', '');
-    ws.send('PASS SCHMOOPIIE');
-    ws.send('NICK justinfan61935');
-    ws.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
-    for (const channel of channels) {
-        ws.send(`JOIN #${channel}`);
-        createLeaveButton(channel);
-    }
-};
-
-ws.onmessage = (event) => {
-    const messageEvents = parseRawData(event.data);
-
-    for (const rawData of messageEvents) {
-        if (rawData.startsWith('PING')) {
-            ws.send('PONG :tmi.twitch.tv');
-            return;
-        }
-
-        const obj = {};
-        const dataItems = rawData.split(';');
-
-        for (const item of dataItems) {
-            const keyVal = item.split('=');
-            if (keyVal.length == 2) {
-                const [key, val] = keyVal;
-                obj[key] = val;
-            }
-        }
-
-        const roomId = obj['room-id'];
-        const isValidRoomId = checkValueIsInteger(roomId);
-
-        if (rawData.includes('ROOMSTATE')) {
-            const startIdx = rawData.indexOf('ROOMSTATE');
-            const hashtag = rawData.indexOf('#', startIdx);
-            obj.channelName = rawData.slice(hashtag + 1).trim().toLowerCase();
-
-            if (!(obj.channelName in usernameToId)) {
-                if (isValidRoomId) {
-                    usernameToId[obj.channelName] = roomId;
-                    idToUsername[roomId] = obj.channelName;
-                }
-            }
-        }
-
-        if (isValidRoomId && !currentlyRemoving.has(roomId) && !isFetching.has(roomId)) {
-            const username = idToUsername[roomId];
-            if (username && !channels.has(username)) return;
-            isFetching.add(roomId);
-            console.log(`%c[Emotes]%c Fetching emotes...`, 'color: yellow; font-weight: bold;', '');
-            getChannelEmotes(roomId);
-        }
-
-        if (isValidRoomId && !currentlyRemoving.has(roomId) && roomId in idToEmoteSet && !(roomId in subscribed7TV)) {
-            const username = idToUsername[roomId];
-            if (username && !channels.has(username)) return;
-            if (sevenTVws.readyState == sevenTVws.OPEN) {
-                subscribed7TV.add(roomId);
-                send7TVMessage(roomId, 'subscribe');
-            }
-        }
-
-        if (rawData.includes('PRIVMSG')) {
-            const privMsgIdx = rawData.indexOf('PRIVMSG');
-            const messageStart = privMsgIdx != -1 ? rawData.indexOf(" :", privMsgIdx) : -1;
-            const message = messageStart != -1 ? rawData.slice(messageStart + 2).trim() : '';
-            const channelName = rawData.slice(privMsgIdx + 9, messageStart);
-            const displayName = obj['display-name'];
-
-            let username = displayName;
-            const userType = obj["user-type"];
-
-            if (userType) {
-                const usernameStart = userType.indexOf(':') + 1;
-                const usernameEnd = userType.indexOf('!');
-                username = userType.slice(usernameStart, usernameEnd);
-            }
-
-            obj.channelName = channelName.toLowerCase();
-            obj.message = message;
-            obj.badges = obj.badges.split(',');
-            obj.emotes = obj.emotes.split('/');
-
-            if (obj.message && !hidden.has(displayName.toLowerCase())) {
-                const sourceRoomId = obj['source-room-id'];
-                const sourceId = obj['source-id'];
-                const sourceChannel = sourceRoomId in idToUsername ? idToUsername[sourceRoomId] : null;
-                const shouldSkip = sourceRoomId && sourceRoomId != roomId && sourceChannel && channels.has(sourceChannel);
-
-                if (!shouldSkip && (!sourceId || !addedMessages.has(sourceId))) {
-                    if (sourceId) {
-                        if (1000 - addedMessages.size < 5) addedMessages.clear();
-                        addedMessages.add(sourceId);
-                    }
-                    const message = obj.message;
-                    const color = obj.color;
-                    const isFirstMsg = obj['first-msg'] == '1';
-                    const isHighlightedMsg = obj['msg-id'] == 'highlighted-message';
-                    const pageObj = {
-                        displayName, username, message, color, id: roomId, badges: obj.badges,
-                        emotes: obj.emotes, channelName: obj.channelName, isFirstMsg, isHighlightedMsg
-                    }
-                    appendToPage(pageObj);
-                }
-            }
-        }
-
-        if (obj.channelName && !(obj.channelName in usernameToId)) {
-            if (isValidRoomId) {
-                usernameToId[obj.channelName] = roomId;
-                idToUsername[roomId] = obj.channelName;
-            }
-        }
-    }
-};
-
-ws.onerror = (error) => {
-    console.error('WebSocket Error:', error);
-};
-
-ws.onclose = () => {
-    console.log('%c[Disconnected]%c Connection closed.', 'color: red; font-weight: bold;', '');
-};
-
-sevenTVws.onopen = () => {
-    console.log(`%c[7TV Connected]%c Connected to 7TV WebSocket.`, 'color: green; font-weight: bold;', '');
-}
-
-sevenTVws.onmessage = (event) => {
-    const message = JSON.parse(event.data);
-    if (message.op == 2) return;
-    if (message.op == 0) {
-        const data = message.d;
-        const emoteSetId = getNestedProperty(data, ['body', 'id']);
-        const body = getNestedProperty(message, ['d', 'body']);
-
-        if (!data || !emoteSetId || !body || !(emoteSetId in emoteSetToId)) return;
-
-        let isChanged = false;
-        const roomId = emoteSetId in emoteSetToId ? emoteSetToId[emoteSetId] : null;
-        const pulled = body.pulled;
-        const pushed = body.pushed;
-        const updated = body.updated;
-
-        if (pulled) {
-            for (const emote of pulled) {
-                const name = getNestedProperty(emote, ['old_value', 'name']);
-                if (name && roomId in channelEmotes && name in channelEmotes[roomId]) {
-                    delete channelEmotes[roomId][name];
-                    isChanged = true;
-                }
-            }
-        }
-
-        if (pushed) {
-            for (const emote of pushed) {
-                const name = getNestedProperty(emote, ['value', 'name']);
-                const url = getNestedProperty(emote, ['value', 'data', 'host', 'url']);
-                if (!name || !url) continue;
-
-                if (!(roomId in channelEmotes)) {
-                    channelEmotes[roomId] = {};
-                }
-
-                channelEmotes[roomId][name] = build7tvEmoteUrl(url);
-                isChanged = true;
-            }
-        }
-
-        if (updated) {
-            for (const changes of updated) {
-                const oldName = getNestedProperty(changes, ['old_value', 'name']);
-                const newName = getNestedProperty(changes, ['value', 'name']);
-                const newUrl = getNestedProperty(changes, ['value', 'data', 'host', 'url']);
-
-                if (oldName in channelEmotes[roomId] && newName && newUrl) {
-                    channelEmotes[roomId][newName] = channelEmotes[roomId][oldName];
-                    delete channelEmotes[roomId][oldName];
-                    isChanged = true;
-                }
-            }
-        }
-
-        if (isChanged) {
-            const timestampKey = `${roomId}-timestamp`;
-            setToLocalStorage(roomId, channelEmotes[roomId]);
-            setToLocalStorage(timestampKey, new Date().getTime());
-        }
-    }
-}
-
-sevenTVws.onerror = (error) => {
-    console.error('7TV WebSocket Error:', error);
-};
-
-sevenTVws.onclose = () => {
-    console.log('%c[7TV Disconnected]%c 7TV connection closed.', 'color: red; font-weight: bold;', '');
-    const buttons = document.getElementById("buttons");
-    const inputEl = document.getElementById("channel-input");
-    if (buttons) buttons.remove();
-    if (inputEl) inputEl.remove();
-}
+let ws = twitchWebSocket();
+let sevenTVws = sevenTVWebSocket();
 
 const leaveChannel = (channelName) => {
     channelName = channelName.toLowerCase();
