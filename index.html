@@ -1,10 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-  <meta charset="UTF-8">
+    <meta charset="UTF-8">
     <title>Twitch Chat</title>
+    <link rel="stylesheet" href="styles.css">
   </head>
   <body>
-    <script src="twitch.js"></script>
+    <div id="chat-container"></div>
+    <div id="error-message" class="hidden"></div>
+    <div id="buttons">
+      <button id="close-socket">STOP</button>
+      <button id="clear-button">CLEAR</button>
+    </div>
+    <input id="channel-input" placeholder="!commands - Ctrl+M to show/hide">
+    <button id="reconnect-button" class="hidden">Reconnect</button>
+    <button id="jump-to-bottom" class="hidden">&#8595;</button>
+    <script src="webview/config.js"></script>
+    <script src="webview/state.js"></script>
+    <script src="webview/utils.js"></script>
+    <script src="webview/main.js"></script>
   </body>
 </html>

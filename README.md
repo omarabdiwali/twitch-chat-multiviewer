@@ -43,7 +43,11 @@ No downloads or setup required - just open the link and start adding channels!
   - `LEAVE #channel` buttons
   - `STOP` (close sockets), `CLEAR` (empty chat), and a temporary `↓` jump-to-bottom button.
   - `Ctrl+M` toggles visibility of the input box and control panel (distraction-free "zen mode").
-- **Ready-to-use `index.html`** – The repo ships with a minimal `index.html` that loads the script, so you can just open it directly.
+- **Modular JavaScript architecture** – Clean separation of concerns with individual modules:
+  - `webview/config.js` - Configuration constants and API endpoints
+  - `webview/state.js` - Application state management
+  - `webview/utils.js` - Utility functions and helpers
+  - `webview/main.js` - Main application logic and WebSocket handlers
 
 ## Getting Started
 
@@ -56,16 +60,19 @@ Simply visit **https://multichat-twitch.vercel.app** in your browser - no instal
 - A modern web browser (Chrome, Firefox, Edge, etc.)
 - Internet access (for WebSocket connections and API fetches)
 
-#### Method A: Standalone HTML page
-The project includes an `index.html` in the repository root that loads `twitch.js`. To run locally:
-1. Download/clone the repo so that `index.html` and `twitch.js` sit in the same folder.
-2. Open `index.html` in your browser. The script immediately clears the page and builds its own UI.
-
-#### Method B: Browser console / Bookmarklet
-1. Open a blank tab or any page you don't mind replacing.
-2. Open the developer console (F12).
-3. Paste the entire contents of `twitch.js` and press **Enter**.
-  *(You could also wrap the code in an IIFE and save it as a bookmarklet.)*
+The project uses a modular JavaScript structure. To run locally:
+1. Download/clone the repo ensuring the directory structure is maintained:
+   ```
+   your-project-folder/
+   ├── index.html
+   ├── styles.css
+   └── webview/
+       ├── config.js
+       ├── state.js
+       ├── utils.js
+       └── main.js
+   ```
+2. Open `index.html` in your browser. The scripts will load automatically and build the chat interface.
 
 ## Using the Interface
 
@@ -109,6 +116,12 @@ You can use special commands in the input field to manage which users appear in 
 | `toggleElementsVisibility()` | Manages UI visibility state when connections are lost/restored. |
 | LocalStorage | Keys: `global`, `{roomId}`, `{roomId}-timestamp`, `twitch-badges`, `profile-images`, `id-to-emote-set`, `emote-set-to-id`. |
 
+### Module Structure
+- **config.js** - Contains all configuration constants including API endpoints, cache durations, username colors, and bot lists
+- **state.js** - Manages application state using Maps and Sets for channels, emotes, hidden users, focused users, etc.
+- **utils.js** - Pure utility functions for validation, URL building, storage operations, and data parsing
+- **main.js** - Core application logic including WebSocket connections, message handling, and UI interactions
+
 ### Emote Resolution Order
 For each word in a message:
 1. Channel-specific emote (from `channelEmotes[roomId]`)
@@ -134,7 +147,7 @@ When WebSocket connections are lost:
 
 ## Configuration
 
-Edit the constants near the top of `twitch.js`:
+Edit the constants near the top of `webview/config.js`:
 
 ```js
 const KEEP_ALIVE = 14400000; // 4 hours before re-fetch of channel emotes
@@ -158,6 +171,6 @@ You can also change API URLs (`BTTV_GLOBAL`, `SEVEN_TV_GLOBAL`, `BADGES_URL`, et
 
 - **Read-only** – The script only listens; you cannot send chat messages.
 - **No historical chat** – Only messages received after joining are shown.
-- **Single-file** – No build step, no external JS libraries.
+- **Modular single-file setup** – No build step, no external JS libraries, cleanly separated modules.
 - **Command scope** – Hide/focus commands only affect the current session and are not persisted.
 - **Reconnection state** – The Reconnect button only restores connections; it does not preserve channel subscriptions across page refreshes.
