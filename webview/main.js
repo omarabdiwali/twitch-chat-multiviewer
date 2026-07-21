@@ -7,6 +7,7 @@ const setInitialElements = () => {
     const closeSocketButton = document.getElementById('close-socket');
     const clearChatButton = document.getElementById('clear-button');
     const leaveAllButton = document.getElementById('leave-all');
+    const closeModalButton = document.getElementById('close-modal');
 
     const changeUIView = (e) => {
         const channelInput = document.getElementById('channel-input');
@@ -144,6 +145,15 @@ const setInitialElements = () => {
             leaveChannel(channel);
             leaveButton && leaveButton.remove();
         }
+    })
+    
+    closeModalButton.addEventListener('click', () => {
+        const modal = document.getElementById('modal');
+        const modalElements = document.getElementById('modal-elements');
+        if (modalElements) {
+            modalElements.scrollTop = 0;
+        }
+        modal && modal.close();
     })
 }
 

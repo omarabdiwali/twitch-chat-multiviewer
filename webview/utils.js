@@ -22,31 +22,67 @@ const purgeLocalStorage = () => {
     }
 }
 
+const createModalElement = (text, type, className, id) => {
+    const el = document.createElement(type);
+    el.className = className || "";
+    if (id) el.id = id;
+    
+    if (text.includes(' - ')) {
+        const [firstPart, secondPart] = text.split(' - ', 2);
+        const boldPart = document.createElement('strong');
+
+        boldPart.style.fontWeight = '600';
+        boldPart.style.color = 'oklch(85% 0.15 264)';
+        boldPart.innerText = firstPart;
+        
+        el.appendChild(boldPart);
+        el.appendChild(document.createTextNode(` - ${secondPart}`));
+    } else {
+        el.innerText = text;
+    }
+
+    return el;
+}
+
+const capitalizeWord = (word) => {
+    return word.at(0).toUpperCase() + word.slice(1);
+}
+
 const parseCommandMessage = (message) => {
     const command = COMMANDS.find((cmd) => message.startsWith(cmd));
+    const modal = document.getElementById('modal-elements');
 
     if (command == '!commands') {
         if (message != command) return false;
-        let infoMessage = "[username] - Adds the user's chat to the viewer.\n";
+        let infoMessages = [];
+        let titleEl = createModalElement('Available Commands', 'h3', 'elements');
+        let firstMessage = createModalElement("[username] - Adds the user's chat to the viewer.", 'div', 'elements');
+        infoMessages.push(...[titleEl, firstMessage])
+
         for (let i = 0; i < COMMANDS.length; i++) {
-            infoMessage += `${COMMAND_HELP.at(i)}.\n`;
+            const el = createModalElement(COMMAND_HELP.at(i), 'div', 'elements');
+            infoMessages.push(el);
         }
-        alert(infoMessage);
+
+        modal.replaceChildren(...infoMessages);
+        modal.parentElement.showModal();
         return true;
     } else if (command == '!hidden' || command == '!focused') {
         if (message != command) return false;
-        let infoMessage = "";
+        let infoMessage = [];
         const data = message == '!hidden' ? hidden : highlightUsers;
+        const headerEl = createModalElement(`${capitalizeWord(command.slice(1))} Users`, 'div', 'elements');
+        infoMessage.push(headerEl);
 
-        if (data.size == 0) {
-            infoMessage = `There are currently no ${command.slice(1)} users.`;
-        } else {
-            infoMessage += `Current ${command.slice(1)} users:\n`;
-            const users = [...data].join(' - ');
-            infoMessage += `${users}`;
+        if (data.size > 0) {
+            for (const user of data) {
+                const el = createModalElement(user, 'div', 'user-list');
+                infoMessage.push(el);
+            }
         }
 
-        alert(infoMessage);
+        modal.replaceChildren(...infoMessage);
+        modal.parentElement.showModal();
         return true;
     }
 

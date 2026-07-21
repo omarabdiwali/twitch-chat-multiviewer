@@ -6,6 +6,10 @@
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
+    <dialog id="modal">
+      <div id="modal-elements"></div>
+      <button id="close-modal">Close</button>
+    </dialog>
     <div id="chat-container"></div>
     <div id="error-message" class="hidden"></div>
     <div id="buttons">
@@ -13,7 +17,7 @@
       <button id="clear-button">CLEAR</button>
       <button id="leave-all" class="hidden">LEAVE ALL</button>
     </div>
-    <input id="channel-input" placeholder="!commands - Ctrl+M to show/hide">
+    <input id="channel-input" placeholder="!commands - Ctrl+M to show/hide UI">
     <button id="reconnect-button" class="hidden">Reconnect</button>
     <button id="jump-to-bottom" class="hidden">&#8595;</button>
     <script src="webview/config.js"></script>
