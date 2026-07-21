@@ -6,6 +6,7 @@ const setInitialElements = () => {
     const addChannelInput = document.getElementById('channel-input');
     const closeSocketButton = document.getElementById('close-socket');
     const clearChatButton = document.getElementById('clear-button');
+    const leaveAllButton = document.getElementById('leave-all');
 
     const changeUIView = (e) => {
         const channelInput = document.getElementById('channel-input');
@@ -124,6 +125,25 @@ const setInitialElements = () => {
         const chatContainerEl = document.getElementById('chat-container');
         if (!chatContainerEl) return;
         chatContainerEl.replaceChildren();
+    })
+
+    leaveAllButton.addEventListener('click', () => {
+        if (channels.size <= 1) return;
+        const message = buildErrorMessage(ws.readyState, sevenTVws.readyState, ws.OPEN);
+        
+        if (message) {
+            if (errorMessage.isConnected) {
+                errorMessage.textContent = message;
+                errorMessage.classList.remove('hidden');
+            }
+            return;
+        }
+
+        for (const channel of channels) {
+            const leaveButton = document.getElementById(`leave-button-${channel}`);
+            leaveChannel(channel);
+            leaveButton && leaveButton.remove();
+        }
     })
 }
 
@@ -323,7 +343,7 @@ const get7tvChannelEmotes = (id) => {
     fetch(`${SEVEN_TV_USER}/${id}`, { signal: abortController.signal }).then(res => res.json()).then(data => {
         const profileImage = getNestedProperty(data, ['user', 'avatar_url']);
         if (profileImage) {
-            const previousURL = id in profileImages ? profileImages[id] : null;
+            const previousURL = profileImages[id];
             const currentURL = buildProfileImageUrl(profileImage);
             if (previousURL != currentURL) {
                 profileImages[id] = currentURL;
@@ -453,6 +473,13 @@ const toggleElementsVisibility = (hide) => {
         if (inputEl) inputEl.classList.remove('hidden');
         if (reconnect) reconnect.classList.add('hidden');
     }
+}
+
+const checkLeaveAllVisibility = () => {
+    const leaveAllButton = document.getElementById('leave-all');
+    if (!leaveAllButton) return;
+    if (channels.size > 1) leaveAllButton.classList.remove('hidden');
+    else leaveAllButton.classList.add('hidden');
 }
 
 const twitchWebSocket = () => {
@@ -680,6 +707,7 @@ const leaveChannel = (channelName) => {
     channels.delete(channelName);
     ws.send(`PART #${channelName}`);
     removeChannelFromData(channelName);
+    checkLeaveAllVisibility();
 }
 
 const joinChannel = (channelName) => {
@@ -692,6 +720,7 @@ const joinChannel = (channelName) => {
     channels.add(channelName);
     ws.send(`JOIN #${channelName}`);
     createLeaveButton(channelName);
+    checkLeaveAllVisibility();
 }
 
 const createLeaveButton = (channelName) => {
@@ -700,6 +729,7 @@ const createLeaveButton = (channelName) => {
     if (!buttonContainer) return;
 
     leaveChannelButton.className = 'leave-button';
+    leaveChannelButton.id = `leave-button-${channelName}`;
     leaveChannelButton.innerText = `LEAVE #${channelName}`;
 
     leaveChannelButton.addEventListener('click', () => {
@@ -714,8 +744,8 @@ const createLeaveButton = (channelName) => {
 }
 
 const removeChannelFromData = (channelName) => {
-    const id = channelName in usernameToId ? usernameToId[channelName] : null;
-    if (id != null && !currentlyRemoving.has(id)) {
+    const id = usernameToId[channelName];
+    if (id && !currentlyRemoving.has(id)) {
         currentlyRemoving.add(id);
         isFetching.delete(id);
         delete channelEmotes[id];

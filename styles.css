@@ -144,7 +144,7 @@ button, [role="button"] {
 .hidden {
     display: none !important;
 }
-.leave-button, #close-socket, #clear-button, #reconnect-button {
+.leave-button, #close-socket, #clear-button, #reconnect-button, #leave-all {
     color: black !important;
     border-radius: 7px !important;
     padding: 3px !important;
@@ -178,6 +178,12 @@ button, [role="button"] {
 }
 #reconnect-button:hover {
     background: lightyellow !important;
+}
+#leave-all {
+    background: #0d80b5 !important;
+}
+#leave-all:hover {
+    background: #33aed4 !important;
 }
 #channel-input {
     background: white !important;
