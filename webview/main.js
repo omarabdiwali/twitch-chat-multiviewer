@@ -580,7 +580,7 @@ const twitchWebSocket = () => {
                 obj.badges = obj.badges.split(',');
                 obj.emotes = obj.emotes.split('/');
 
-                if (obj.message && !hidden.has(displayName.toLowerCase())) {
+                if (obj.message && !hidden.has(displayName.toLowerCase()) && !hidden.has(username.toLowerCase())) {
                     const sourceRoomId = obj['source-room-id'];
                     const sourceId = obj['source-id'];
                     const sourceChannel = sourceRoomId in idToUsername ? idToUsername[sourceRoomId] : null;
@@ -638,7 +638,6 @@ const sevenTVWebSocket = () => {
 
     sevenTVws.onmessage = (event) => {
         const message = JSON.parse(event.data);
-        if (message.op == 2) return;
         if (message.op == 0) {
             const data = message.d;
             const emoteSetId = getNestedProperty(data, ['body', 'id']);
@@ -647,7 +646,7 @@ const sevenTVWebSocket = () => {
             if (!data || !emoteSetId || !body || !(emoteSetId in emoteSetToId)) return;
 
             let isChanged = false;
-            const roomId = emoteSetId in emoteSetToId ? emoteSetToId[emoteSetId] : null;
+            const roomId = emoteSetToId[emoteSetId];
             const pulled = body.pulled;
             const pushed = body.pushed;
             const updated = body.updated;
@@ -684,8 +683,8 @@ const sevenTVWebSocket = () => {
                     const newUrl = getNestedProperty(changes, ['value', 'data', 'host', 'url']);
 
                     if (oldName in channelEmotes[roomId] && newName && newUrl) {
-                        channelEmotes[roomId][newName] = channelEmotes[roomId][oldName];
                         delete channelEmotes[roomId][oldName];
+                        channelEmotes[roomId][newName] = newUrl;
                         isChanged = true;
                     }
                 }
@@ -777,3 +776,4 @@ getProfileImages();
 
 let ws = twitchWebSocket();
 let sevenTVws = sevenTVWebSocket();
+document.getElementById('channel-input').focus();
