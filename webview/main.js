@@ -158,7 +158,7 @@ const setInitialElements = () => {
 }
 
 const appendToPage = (data) => {
-    const { displayName, username, message, color, id, badges, emotes, channelName, isFirstMsg, isHighlighted } = data;
+    const { displayName, username, message, color, id, badges, emotes, channelName, isFirstMsg, isHighlightedMsg } = data;
     const chatContainer = document.getElementById('chat-container');
     if (!chatContainer) return;
 
@@ -178,7 +178,7 @@ const appendToPage = (data) => {
     usernameDiv.innerText = buildUsernameText(displayName, username);
 
     const msgEl = document.createElement('div');
-    msgEl.className = isHighlighted ? 'message-highlighted' : 'message';
+    msgEl.className = isHighlightedMsg ? 'message-highlighted' : 'message';
 
     const badgeFragment = document.createDocumentFragment();
     let foundBadge = false;
